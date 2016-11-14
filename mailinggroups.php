@@ -142,7 +142,19 @@ function mailinggroups_civicrm_pre($op, $objectName, $id, &$params) {
         $edit_load = !empty($params['options']['force_rollback']);
         // We're loading it for the editor - now what?
       case 'create':
-        _mailinggroups_acl_filter($params['groups']);
+        $filtered = _mailinggroups_acl_filter($params['groups']);
+
+        if($filtered && !$edit_load) {
+          CRM_Core_Session::setStatus(
+            ts(
+              'One group was removed from the recipient list due to insufficient permissions.',
+              array(
+                'count' => $filtered,
+                'plural' => '%count groups were removed from the recipient list due to insufficient permissions.',
+              )),
+            ts('Recipients removed')
+          );
+        }
       default:
         break;
     }
@@ -170,17 +182,7 @@ function _mailinggroups_acl_filter(Array &$groups, $do_filter = TRUE) {
     }
   }
 
-  if($filtered) {
-    CRM_Core_Session::setStatus(
-      ts(
-        'One group was removed from the recipient list due to permissions.',
-        array(
-          'count' => $filtered,
-          'plural' => '%count groups were removed from the recipient list due to permissions.',
-        )),
-      ts('Recipients removed')
-    );
-  }
+  return $filtered;
 }
 
 /**
