@@ -142,19 +142,40 @@ function mailinggroups_civicrm_pre($op, $objectName, $id, &$params) {
         $edit_load = !empty($params['options']['force_rollback']);
         // We're loading it for the editor - now what?
       case 'create':
-        $filtered = _mailinggroups_acl_filter($params['groups']);
+        // Filter out groups the user has no permissions for.
+        if (isset($params['groups'])){
+          $filtered = _mailinggroups_acl_filter_groups($params['groups']);
 
-        if($filtered && !$edit_load) {
-          CRM_Core_Session::setStatus(
-            ts(
-              'One group was removed from the recipient list due to insufficient permissions.',
-              array(
-                'count' => $filtered,
-                'plural' => '%count groups were removed from the recipient list due to insufficient permissions.',
-              )),
-            ts('Recipients removed')
-          );
+          if($filtered && !$edit_load) {
+            CRM_Core_Session::setStatus(
+              ts(
+                'One group was removed from the recipient list due to insufficient permissions.',
+                array(
+                  'count' => $filtered,
+                  'plural' => '%count groups were removed from the recipient list due to insufficient permissions.',
+                )),
+              ts('Recipients removed')
+            );
+          }
         }
+
+        // Filter out mailings the user has no permissions for.
+        if (isset($params['mailings'])){
+          $filtered = _mailinggroups_acl_filter_mailings($params['mailings']);
+
+          if($filtered && !$edit_load) {
+            CRM_Core_Session::setStatus(
+              ts(
+                'One past mailing was removed from the recipient list due to insufficient permissions.',
+                array(
+                  'count' => $filtered,
+                  'plural' => '%count past mailings were removed from the recipient list due to insufficient permissions.',
+                )),
+              ts('Recipients removed')
+            );
+          }
+        }
+
       default:
         break;
     }
@@ -164,7 +185,7 @@ function mailinggroups_civicrm_pre($op, $objectName, $id, &$params) {
 /**
  * Filter the groups to only include those that the editing user can see.
  */
-function _mailinggroups_acl_filter(Array &$groups, $do_filter = TRUE) {
+function _mailinggroups_acl_filter_groups(Array &$groups, $do_filter = TRUE) {
   $filtered = 0;
 
   // Get list of allowed groups for current user;
@@ -178,6 +199,30 @@ function _mailinggroups_acl_filter(Array &$groups, $do_filter = TRUE) {
       $filtered++;
       if($do_filter){
         unset($groups['include'][$idx]);
+      }
+    }
+  }
+
+  return $filtered;
+}
+
+/**
+ * Filter the mailings to only include those that the editing user can see.
+ */
+function _mailinggroups_acl_filter_mailings(Array &$mailings, $do_filter = TRUE) {
+  $filtered = 0;
+
+  // Get list of allowed mailings for current user;
+  static $allowed = NULL;
+  if(!$allowed) {
+    $allowed = CRM_Mailing_BAO_Mailing::mailingACLIDs();
+  }
+
+  foreach($mailings['include'] as $idx => $gid) {
+    if (!in_array($gid, $allowed)) {
+      $filtered++;
+      if($do_filter){
+        unset($mailings['include'][$idx]);
       }
     }
   }
