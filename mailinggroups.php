@@ -133,7 +133,7 @@ function mailinggroups_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
  * @param array $params
  */
 function mailinggroups_civicrm_pre($op, $objectName, $id, &$params) {
-  if($objectName == 'Mailing' && !CRM_Core_Permission::check('view all contacts')) {
+  if($objectName == 'Mailing') {
     $edit_load = FALSE;
     switch($op) {
       case 'edit':
