@@ -194,11 +194,13 @@ function _mailinggroups_acl_filter_groups(Array &$groups, $do_filter = TRUE) {
     $allowed = CRM_Core_Permission::group('Mailing');
   }
 
-  foreach($groups['include'] as $idx => $gid) {
-    if (!array_key_exists($gid, $allowed)) {
-      $filtered++;
-      if($do_filter){
-        unset($groups['include'][$idx]);
+  foreach(array('include', 'exclude') as $rule) {
+    foreach($groups[$rule] as $idx => $gid) {
+      if (!array_key_exists($gid, $allowed)) {
+        $filtered++;
+        if($do_filter){
+          unset($groups[$rule][$idx]);
+        }
       }
     }
   }
@@ -218,11 +220,13 @@ function _mailinggroups_acl_filter_mailings(Array &$mailings, $do_filter = TRUE)
     $allowed = CRM_Mailing_BAO_Mailing::mailingACLIDs();
   }
 
-  foreach($mailings['include'] as $idx => $gid) {
-    if (!in_array($gid, $allowed)) {
-      $filtered++;
-      if($do_filter){
-        unset($mailings['include'][$idx]);
+  foreach(array('include', 'exclude') as $rule) {
+    foreach($mailings[$rule] as $idx => $gid) {
+      if (!in_array($gid, $allowed)) {
+        $filtered++;
+        if($do_filter){
+          unset($mailings[$rule][$idx]);
+        }
       }
     }
   }
