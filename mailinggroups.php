@@ -220,6 +220,11 @@ function _mailinggroups_acl_filter_mailings(Array &$mailings, $do_filter = TRUE)
     $allowed = CRM_Mailing_BAO_Mailing::mailingACLIDs();
   }
 
+  // mailingACLIDs returns TRUE if the user has access to all contacts.
+  if ($allowed === TRUE) {
+    return 0;
+  }
+
   foreach(array('include', 'exclude') as $rule) {
     foreach($mailings[$rule] as $idx => $gid) {
       if (!in_array($gid, $allowed)) {
