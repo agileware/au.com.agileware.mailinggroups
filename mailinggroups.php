@@ -161,7 +161,7 @@ function mailinggroups_civicrm_pre($op, $objectName, $id, &$params) {
 
         // Filter out mailings the user has no permissions for.
         if (isset($params['mailings'])){
-          $filtered = _mailinggroups_acl_filter_mailings($params['mailings']);
+          list($filtered_dom, $filtered) = _mailinggroups_acl_filter_mailings($params['mailings']);
 
           if($filtered && !$edit_load) {
             CRM_Core_Session::setStatus(
@@ -174,7 +174,21 @@ function mailinggroups_civicrm_pre($op, $objectName, $id, &$params) {
               ts('Recipients removed')
             );
           }
+
+          if($filtered_dom && !$edit_load) {
+            CRM_Core_Session::setStatus(
+              ts(
+                'One past mailing was removed from the recipient list due to domain filtering.',
+                array(
+                  'count' => $filtered_dom,
+                  'plural' => '%count past mailings were removed from the recipient list due to domain filtering.',
+                )),
+              ts('Recipients removed')
+            );
+          }
         }
+
+        break;
 
       default:
         break;
@@ -212,7 +226,39 @@ function _mailinggroups_acl_filter_groups(Array &$groups, $do_filter = TRUE) {
  * Filter the mailings to only include those that the editing user can see.
  */
 function _mailinggroups_acl_filter_mailings(Array &$mailings, $do_filter = TRUE) {
+  $filtered_dom = 0;
   $filtered = 0;
+
+  static $domains = array();
+
+  $domainID = CRM_Core_Config::domainID();
+
+  if(!array_key_exists($domainID, $domains)) {
+    // To determine the allowable domains, get a list of mailing in the current domain.
+    // We use the same query as CRM_Mailing_Info.
+    $domains[$domainID] = civicrm_api3('Mailing', 'get', array(
+                 'is_completed' => 1,
+                 'mailing_type' => array('IN' => array('standalone', 'winner')),
+                 'domain_id'    => $domainID,
+                 'return'       => array('domain_id'),
+                 'options'      => array(
+                   'limit' => 500,
+                   'sort'  => 'is_archived asc, scheduled_date desc'
+                 ),
+               ));
+  }
+
+  // First, filter out by Domain ID
+  foreach(array('include', 'exclude') as $rule) {
+    foreach($mailings[$rule] as $idx => $gid) {
+      if (empty($domains[$domainID]['values'][$gid])) {
+        $filtered_dom++;
+        if($do_filter) {
+          unset($mailings[$rule][$idx]);
+        }
+      }
+    }
+  }
 
   // Get list of allowed mailings for current user;
   static $allowed = NULL;
@@ -221,22 +267,21 @@ function _mailinggroups_acl_filter_mailings(Array &$mailings, $do_filter = TRUE)
   }
 
   // mailingACLIDs returns TRUE if the user has access to all contacts.
-  if ($allowed === TRUE) {
-    return 0;
-  }
-
-  foreach(array('include', 'exclude') as $rule) {
-    foreach($mailings[$rule] as $idx => $gid) {
-      if (!in_array($gid, $allowed)) {
-        $filtered++;
-        if($do_filter){
-          unset($mailings[$rule][$idx]);
+  if ($allowed !== TRUE) {
+    // Filter by mailing ACLs
+    foreach(array('include', 'exclude') as $rule) {
+      foreach($mailings[$rule] as $idx => $gid) {
+        if (!in_array($gid, $allowed)) {
+          $filtered++;
+          if($do_filter){
+            unset($mailings[$rule][$idx]);
+          }
         }
       }
     }
   }
 
-  return $filtered;
+  return array($filtered_dom, $filtered);
 }
 
 /**
